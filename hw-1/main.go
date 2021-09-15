@@ -1,12 +1,10 @@
 package main
 
-import (
-	"fmt"
-)
+import "fmt"
 
 type (
 	Symbol []string
-	Mod func(s *Symbol)
+	Mod    func(s *Symbol)
 )
 
 func printSymbol(s Symbol) {
@@ -43,7 +41,7 @@ func sandglass(size int, mods ...Mod) {
 	}
 
 	printLine(size, symbol)
-	draw(size - 2, 0, symbol)
+	draw(size-2, 0, symbol)
 	printLine(size, symbol)
 }
 
@@ -51,24 +49,25 @@ func draw(width int, spaces int, s Symbol) {
 	fmt.Print(" ")
 	stars(width, spaces, width, s)
 	if width > 2 {
-		draw(width - 2, spaces + 1, s)
+		draw(width-2, spaces+1, s)
 		fmt.Print(" ")
 		stars(width, spaces, width, s)
 	}
 }
 
 func stars(n int, spaces int, width int, s Symbol) {
-	if spaces > 0 {
+	switch {
+	case spaces > 0:
 		fmt.Print(" ")
-		stars(n, spaces - 1, width, s)
-	} else if n > 0 {
+		stars(n, spaces-1, width, s)
+	case n > 0:
 		if n == 1 || n == width {
 			printSymbol(s)
 		} else {
 			fmt.Print(" ")
 		}
-		stars(n - 1, spaces, width, s)
-	} else {
+		stars(n-1, spaces, width, s)
+	default:
 		fmt.Println()
 	}
 }

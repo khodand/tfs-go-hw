@@ -1,4 +1,3 @@
-module github.com/tfs-go/lections21
+module tfs-go-hw
 
 go 1.17
-
