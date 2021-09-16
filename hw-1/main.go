@@ -6,11 +6,11 @@ import (
 
 // settings numbers for symbol
 const (
-	CHAR          = iota
-	SIZE          = iota
-	COLOR_START   = iota
-	COLOR_END     = iota
-	SETTINGS_SIZE = iota
+	charSetting       = iota
+	sizeSetting       = iota
+	colorStartSetting = iota
+	colorEndSetting   = iota
+	settingsSize      = iota
 )
 
 type (
@@ -19,7 +19,7 @@ type (
 )
 
 func printSymbol(s Symbol) {
-	fmt.Print(s[COLOR_START] + s[CHAR] + s[COLOR_END])
+	fmt.Print(s[colorStartSetting] + s[charSetting] + s[colorEndSetting])
 }
 
 func printLine(size int, s Symbol) {
@@ -31,8 +31,8 @@ func printLine(size int, s Symbol) {
 
 func setColor(color int) Mod {
 	return func(s *Symbol) {
-		(*s)[COLOR_START] = fmt.Sprintf("\u001B[%vm", color)
-		(*s)[COLOR_END] = "\u001B[0m"
+		(*s)[colorStartSetting] = fmt.Sprintf("\u001B[%vm", color)
+		(*s)[colorEndSetting] = "\u001B[0m"
 	}
 }
 
@@ -44,21 +44,21 @@ func setChar(char string) Mod {
 
 func setSize(size int) Mod {
 	return func(s *Symbol) {
-		(*s)[SIZE] = fmt.Sprintf("%v", size)
+		(*s)[sizeSetting] = fmt.Sprintf("%v", size)
 	}
 }
 
 func sandglass(mods ...Mod) {
-	symbol := make(Symbol, SETTINGS_SIZE)
-	symbol[CHAR] = "X"
-	symbol[SIZE] = "1"
+	symbol := make(Symbol, settingsSize)
+	symbol[charSetting] = "X"
+	symbol[sizeSetting] = "1"
 
 	for _, mod := range mods {
 		mod(&symbol)
 	}
 
 	width := 0
-	_, err := fmt.Sscan(symbol[SIZE], &width)
+	_, err := fmt.Sscan(symbol[sizeSetting], &width)
 	if err != nil {
 		return
 	}
