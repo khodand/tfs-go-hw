@@ -1,6 +1,17 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
+
+// settings numbers for symbol
+const (
+	CHAR          = iota
+	SIZE          = iota
+	COLOR_START   = iota
+	COLOR_END     = iota
+	SETTINGS_SIZE = iota
+)
 
 type (
 	Symbol []string
@@ -8,11 +19,7 @@ type (
 )
 
 func printSymbol(s Symbol) {
-	if len(s) > 1 {
-		fmt.Print(s[1] + s[0] + s[2])
-	} else {
-		fmt.Print(s[0])
-	}
+	fmt.Print(s[COLOR_START] + s[CHAR] + s[COLOR_END])
 }
 
 func printLine(size int, s Symbol) {
@@ -24,7 +31,8 @@ func printLine(size int, s Symbol) {
 
 func setColor(color int) Mod {
 	return func(s *Symbol) {
-		*s = append(*s, fmt.Sprintf("\u001B[%vm", color), "\u001B[0m")
+		(*s)[COLOR_START] = fmt.Sprintf("\u001B[%vm", color)
+		(*s)[COLOR_END] = "\u001B[0m"
 	}
 }
 
@@ -34,46 +42,64 @@ func setChar(char string) Mod {
 	}
 }
 
-func sandglass(size int, mods ...Mod) {
-	symbol := Symbol{"X"}
+func setSize(size int) Mod {
+	return func(s *Symbol) {
+		(*s)[SIZE] = fmt.Sprintf("%v", size)
+	}
+}
+
+func sandglass(mods ...Mod) {
+	symbol := make(Symbol, SETTINGS_SIZE)
+	symbol[CHAR] = "X"
+	symbol[SIZE] = "1"
+
 	for _, mod := range mods {
 		mod(&symbol)
 	}
 
-	printLine(size, symbol)
-	draw(size-2, 0, symbol)
-	printLine(size, symbol)
-}
-
-func draw(width int, spaces int, s Symbol) {
-	fmt.Print(" ")
-	stars(width, spaces, width, s)
-	if width > 2 {
-		draw(width-2, spaces+1, s)
-		fmt.Print(" ")
-		stars(width, spaces, width, s)
+	width := 0
+	_, err := fmt.Sscan(symbol[SIZE], &width)
+	if err != nil {
+		return
 	}
-}
 
-func stars(n int, spaces int, width int, s Symbol) {
-	switch {
-	case spaces > 0:
-		fmt.Print(" ")
-		stars(n, spaces-1, width, s)
-	case n > 0:
-		if n == 1 || n == width {
-			printSymbol(s)
-		} else {
+	w := width - 4
+	halfHeight := int(float32(width)/2 + 0.5)
+
+	printLine(width, symbol)
+	for i := 1; i < halfHeight; i++ {
+		for j := i; j > 0; j-- {
 			fmt.Print(" ")
 		}
-		stars(n-1, spaces, width, s)
-	default:
+		if w != -1 {
+			printSymbol(symbol)
+		}
+		for j := 0; j < w; j++ {
+			fmt.Print(" ")
+		}
+		printSymbol(symbol)
+		w -= 2
 		fmt.Println()
 	}
+	w += 4
+	for i := 2; i < halfHeight; i++ {
+		for j := i; j < halfHeight; j++ {
+			fmt.Print(" ")
+		}
+		printSymbol(symbol)
+		for j := 0; j < w; j++ {
+			fmt.Print(" ")
+		}
+		printSymbol(symbol)
+		w += 2
+		fmt.Println()
+	}
+	printLine(width, symbol)
 }
 
 func main() {
-	sandglass(11)
-	sandglass(6, setChar("O"))
-	sandglass(13, setColor(31), setChar("S"))
+	sandglass()
+	sandglass(setSize(7))
+	sandglass(setChar("O"), setSize(9))
+	sandglass(setSize(10), setColor(31), setChar("S"))
 }
