@@ -15,10 +15,7 @@ import (
 type JSONCompany struct {
 	Name      string        `json:"company"`
 	Operation JSONOperation `json:"operation"`
-	Type      string        `json:"type"`
-	Value     interface{}   `json:"value"`
-	ID        interface{}   `json:"id"`
-	CreatedAt string        `json:"created_at"`
+	JSONOperation
 }
 
 type JSONOperation struct {
