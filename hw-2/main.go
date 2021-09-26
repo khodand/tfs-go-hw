@@ -14,21 +14,37 @@ import (
 
 type jsonMap map[string]interface{}
 
-type Operation struct {
+type ResultOperation struct {
 	Type        string
 	Value       int
 	ID          string
 	CreatedTime time.Time
 }
 
-type Company struct {
+type JsonCompany struct {
+	Name      string        `json:"company"`
+	Operation JsonOperation `json:"operation"`
+	Type      string        `json:"type"`
+	Value     interface{}   `json:"value"`
+	Id        interface{}   `json:"id"`
+	CreatedAt string        `json:"created_at"`
+}
+
+type JsonOperation struct {
+	Type      string      `json:"type"`
+	Value     interface{} `json:"value"`
+	Id        interface{} `json:"id"`
+	CreatedAt string      `json:"created_at"`
+}
+
+type ResultCompany struct {
 	Name                 string
 	validOperationsCount int
 	balance              int
-	invalidOperations    []Operation
+	invalidOperations    []ResultOperation
 }
 
-func (c Company) writeTo(w io.Writer) {
+func (c ResultCompany) writeTo(w io.Writer) {
 	writeString(w, fmt.Sprintf("		\"company\":\"%s\",\n", c.Name))
 	writeString(w, fmt.Sprintf("		\"valid_operations_count\":%v,\n", c.validOperationsCount))
 	writeString(w, fmt.Sprintf("		\"balance\":%v", c.balance))
@@ -48,7 +64,7 @@ func (c Company) writeTo(w io.Writer) {
 	}
 }
 
-func (c *Company) applyOperation(operation Operation) {
+func (c *ResultCompany) applyOperation(operation ResultOperation) {
 	switch operation.Type {
 	case "+":
 		c.balance += operation.Value
@@ -65,7 +81,7 @@ func (c *Company) applyOperation(operation Operation) {
 	c.validOperationsCount++
 }
 
-func (c *Company) addInvalidOperation(operation Operation) {
+func (c *ResultCompany) addInvalidOperation(operation ResultOperation) {
 	c.invalidOperations = append(c.invalidOperations, operation)
 }
 
@@ -75,15 +91,15 @@ func writeString(w io.Writer, s string) {
 	}
 }
 
-func mapToSlice(m map[string]Company) []Company {
-	s := make([]Company, 0, len(m))
+func mapToSlice(m map[string]ResultCompany) []ResultCompany {
+	s := make([]ResultCompany, 0, len(m))
 	for _, value := range m {
 		s = append(s, value)
 	}
 	return s
 }
 
-func writeResult(companies map[string]Company, w io.Writer) {
+func writeResult(companies map[string]ResultCompany, w io.Writer) {
 	companiesSlice := mapToSlice(companies)
 	sort.SliceStable(companiesSlice, func(i, j int) bool {
 		return companiesSlice[i].Name < companiesSlice[j].Name
@@ -102,54 +118,63 @@ func writeResult(companies map[string]Company, w io.Writer) {
 	writeString(w, "]\n")
 }
 
-func collectDataFromOperation(company map[string]interface{}, operation map[string]interface{}) {
-	for k, v := range operation {
-		company[k] = v
+func collectDataFromOperation(company *JsonCompany) {
+	operation := company.Operation
+	if operation.Type != "" {
+		company.Type = operation.Type
+	}
+	if operation.Value != nil {
+		company.Value = operation.Value
+	}
+	if operation.Id != nil {
+		company.Id = operation.Id
+	}
+	if operation.CreatedAt != "" {
+		company.CreatedAt = operation.CreatedAt
 	}
 }
 
-func isOperationValid(company map[string]interface{}) bool {
-	if _, ok := company["company"]; !ok {
+func isOperationValid(company JsonCompany) bool {
+	if company.Name == "" {
 		return false
 	}
-	if _, ok := company["id"]; !ok {
+	if company.Id == nil {
 		return false
 	}
-	if _, ok := company["created_at"]; !ok {
+	if company.CreatedAt == "" {
 		return false
-	} else if _, err := time.Parse(time.RFC3339, fmt.Sprint(company["created_at"])); err != nil {
+	} else if _, err := time.Parse(time.RFC3339, company.CreatedAt); err != nil {
 		return false
 	}
 	return true
 }
 
-func collectData(jsonCompanyMaps []jsonMap, jsonCompanyOperations []map[string]jsonMap) map[string]Company {
-	allCompanies := make(map[string]Company)
-	for i, companyMap := range jsonCompanyMaps {
-		collectDataFromOperation(companyMap, jsonCompanyOperations[i]["operation"])
-		if isOperationValid(companyMap) {
-			name := fmt.Sprint(companyMap["company"])
-			if _, ok := allCompanies[name]; !ok {
-				allCompanies[name] = Company{Name: name}
+func collectData(jsonCompanies []JsonCompany) map[string]ResultCompany {
+	allCompanies := make(map[string]ResultCompany)
+	for _, jsonCompany := range jsonCompanies {
+		collectDataFromOperation(&jsonCompany)
+		if isOperationValid(jsonCompany) {
+			if _, ok := allCompanies[jsonCompany.Name]; !ok {
+				allCompanies[jsonCompany.Name] = ResultCompany{Name: jsonCompany.Name}
 			}
 
-			company := allCompanies[name]
-			parsedTime, _ := time.Parse(time.RFC3339, fmt.Sprint(companyMap["created_at"]))
-			value, err := strconv.Atoi(fmt.Sprint(companyMap["value"]))
+			company := allCompanies[jsonCompany.Name]
+			parsedTime, _ := time.Parse(time.RFC3339, jsonCompany.CreatedAt)
+			value, err := strconv.Atoi(fmt.Sprint(jsonCompany.Value))
 			if err != nil {
-				company.addInvalidOperation(Operation{
-					ID:          fmt.Sprint(companyMap["id"]),
+				company.addInvalidOperation(ResultOperation{
+					ID:          fmt.Sprint(jsonCompany.Id),
 					CreatedTime: parsedTime,
 				})
 			} else {
-				company.applyOperation(Operation{
-					Type:        fmt.Sprint(companyMap["type"]),
+				company.applyOperation(ResultOperation{
+					Type:        jsonCompany.Type,
 					Value:       value,
-					ID:          fmt.Sprint(companyMap["id"]),
+					ID:          fmt.Sprint(jsonCompany.Id),
 					CreatedTime: parsedTime,
 				})
 			}
-			allCompanies[name] = company
+			allCompanies[jsonCompany.Name] = company
 		}
 	}
 	return allCompanies
@@ -204,13 +229,12 @@ func main() {
 	var data []byte
 	readDataFromAllSources(&data)
 
-	var jsonCompanyMaps []jsonMap
-	var jsonCompanyOperations []map[string]jsonMap
+	var jsonCompanies []JsonCompany
+	fmt.Println(string(data))
+	_ = json.Unmarshal(data, &jsonCompanies)
 
-	_ = json.Unmarshal(data, &jsonCompanyMaps)
-	_ = json.Unmarshal(data, &jsonCompanyOperations)
-
-	allCompanies := collectData(jsonCompanyMaps, jsonCompanyOperations)
+	allCompanies := collectData(jsonCompanies)
+	fmt.Println(jsonCompanies)
 
 	out, _ := os.Create("out.json")
 	writeResult(allCompanies, out)
