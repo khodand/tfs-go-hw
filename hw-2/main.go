@@ -17,7 +17,7 @@ type JSONCompany struct {
 	Operation JSONOperation `json:"operation"`
 	Type      string        `json:"type"`
 	Value     interface{}   `json:"value"`
-	Id        interface{}   `json:"id"`
+	ID        interface{}   `json:"id"`
 	CreatedAt string        `json:"created_at"`
 }
 
@@ -48,7 +48,7 @@ func (c *ResultCompany) addInvalidOperation(operation InvalidOperation) {
 func (c *ResultCompany) applyOperation(jsonCompany JSONCompany) {
 	parsedTime, _ := time.Parse(time.RFC3339, jsonCompany.CreatedAt)
 	invalidOperation := InvalidOperation{
-		ID:          fmt.Sprint(jsonCompany.Id),
+		ID:          fmt.Sprint(jsonCompany.ID),
 		createdTime: parsedTime,
 	}
 
@@ -117,7 +117,7 @@ func collectDataFromOperation(jsonCompany *JSONCompany) {
 		jsonCompany.Value = operation.Value
 	}
 	if operation.ID != nil {
-		jsonCompany.Id = operation.ID
+		jsonCompany.ID = operation.ID
 	}
 	if operation.CreatedAt != "" {
 		jsonCompany.CreatedAt = operation.CreatedAt
@@ -128,7 +128,7 @@ func isOperationValid(jsonCompany JSONCompany) bool {
 	if jsonCompany.Name == "" {
 		return false
 	}
-	if jsonCompany.Id == nil {
+	if jsonCompany.ID == nil {
 		return false
 	}
 	if jsonCompany.CreatedAt == "" {
