@@ -16,8 +16,21 @@ var tickers = []domain.TickerName{"AAPL", "SBER", "NVDA", "TSLA"}
 
 func main() {
 	logger := log.New()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
+	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
+
+	var shutdownCh = make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-shutdownCh:
+				cancel()
+				wg.Wait()
+				return
+			default:
+			}
+		}
+	}()
 
 	pg := generator.NewPricesGenerator(generator.Config{
 		Factor:  10,
@@ -39,10 +52,8 @@ func main() {
 	logger.Info("start prices generator...")
 	prices := pg.Prices(ctx)
 
-	var shutdownCh = make(chan struct{})
-
 	wg.Add(1)
-	cp.Process(&wg, shutdownCh, prices)
+	cp.Process(&wg, ctx, prices)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

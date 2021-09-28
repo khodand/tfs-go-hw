@@ -51,9 +51,6 @@ type Candle struct {
 }
 
 func NewCandle(price Price, period CandlePeriod) Candle{
-	if period != "" {
-		log.Info("NewCandle", period, price)
-	}
 	if ts, err := PeriodTS(period, price.TS); err != nil {
 		return Candle{}
 	} else {
