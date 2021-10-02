@@ -164,14 +164,10 @@ func readFromFile(filePath string) []byte {
 	return b
 }
 
-func readFromConsole(stopSymbol string) []byte {
-	var data []byte
-	var line string
-	for {
-		if _, err := fmt.Scan(&line); err == io.EOF {
-			break
-		}
-		data = append(data, []byte(line)...)
+func readFromConsole() []byte {
+	data, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return nil
 	}
 	return data
 }
@@ -191,7 +187,7 @@ func readDataFromAllSources(data *[]byte) {
 	if filePath != "" {
 		*data = readFromFile(filePath)
 	} else {
-		*data = readFromConsole("]")
+		*data = readFromConsole()
 	}
 }
 
