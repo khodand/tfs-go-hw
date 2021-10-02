@@ -167,9 +167,9 @@ func readFromFile(filePath string) []byte {
 func readFromConsole(stopSymbol string) []byte {
 	var data []byte
 	var line string
-	for line != stopSymbol {
-		if _, err := fmt.Scan(&line); err != nil {
-			return nil
+	for {
+		if _, err := fmt.Scan(&line); err == io.EOF {
+			break
 		}
 		data = append(data, []byte(line)...)
 	}
