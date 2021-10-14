@@ -38,17 +38,17 @@ func main() {
 		Tickers: tickers,
 	})
 
-	file1m, _ := os.Create(fmt.Sprintf("candel_%s.csv", domain.CandlePeriod1m))
+	file1m, _ := os.Create(fmt.Sprintf("candles_%s.csv", domain.CandlePeriod1m))
 	defer file1m.Close()
-	file2m, _ := os.Create(fmt.Sprintf("candel_%s.csv", domain.CandlePeriod2m))
+	file2m, _ := os.Create(fmt.Sprintf("candles_%s.csv", domain.CandlePeriod2m))
 	defer file2m.Close()
-	file10m, _ := os.Create(fmt.Sprintf("candel_%s.csv", domain.CandlePeriod10m))
+	file10m, _ := os.Create(fmt.Sprintf("candles_%s.csv", domain.CandlePeriod10m))
 	defer file10m.Close()
 
 
 	cp := domain.NewCandleCreator(file1m, file2m, file10m)
 
-	os.Create("candel")
+	os.Create("candle")
 	logger.Info("start prices generator...")
 	prices := pg.Prices(ctx)
 

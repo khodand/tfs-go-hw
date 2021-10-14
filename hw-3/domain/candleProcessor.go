@@ -63,6 +63,8 @@ func (creator *CandleCreator) closeCandle(candle Candle){
 }
 
 func (creator *CandleCreator) getCandle(price Price, period CandlePeriod) Candle{
+	creator.ActiveCandlesMutex.Lock()
+	defer creator.ActiveCandlesMutex.Unlock()
 	if _, ok := creator.ActiveCandles[price.Ticker]; !ok {
 		creator.ActiveCandles[price.Ticker] = make(map[CandlePeriod]Candle)
 	}
@@ -73,14 +75,18 @@ func (creator *CandleCreator) getCandle(price Price, period CandlePeriod) Candle
 	}
 }
 
+func (creator *CandleCreator) setCandle(candle Candle, price Price, period CandlePeriod) {
+	creator.ActiveCandlesMutex.Lock()
+	creator.ActiveCandles[price.Ticker][period] = candle
+	creator.ActiveCandlesMutex.Unlock()
+}
+
 func (creator *CandleCreator) process(period CandlePeriod, prices <-chan Price) <-chan Price {
 	out := make(chan Price)
 	go func() {
 		defer close(out)
 		for price := range prices {
-			creator.ActiveCandlesMutex.Lock()
 			candle := creator.getCandle(price, period)
-			creator.ActiveCandlesMutex.Unlock()
 
 			ts, err := PeriodTS(period, price.TS)
 			catchFatalError(err)
@@ -92,9 +98,7 @@ func (creator *CandleCreator) process(period CandlePeriod, prices <-chan Price) 
 				candle.UpdateCandle(price)
 			}
 
-			creator.ActiveCandlesMutex.Lock()
-			creator.ActiveCandles[price.Ticker][period] = candle
-			creator.ActiveCandlesMutex.Unlock()
+			creator.setCandle(candle, price, period)
 
 			out <- price
 			}
