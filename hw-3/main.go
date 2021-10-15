@@ -21,15 +21,8 @@ func main() {
 
 	var shutdownCh = make(chan struct{})
 	go func() {
-		for {
-			select {
-			case <-shutdownCh:
-				cancel()
-				wg.Wait()
-				return
-			default:
-			}
-		}
+		<-shutdownCh
+		cancel()
 	}()
 
 	pg := generator.NewPricesGenerator(generator.Config{
@@ -48,7 +41,6 @@ func main() {
 
 	cp := domain.NewCandleCreator(file1m, file2m, file10m)
 
-	os.Create("candle")
 	logger.Info("start prices generator...")
 	prices := pg.Prices(ctx)
 

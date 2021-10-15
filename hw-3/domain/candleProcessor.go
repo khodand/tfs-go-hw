@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"encoding/csv"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -33,7 +34,6 @@ func (creator *CandleCreator) Process(wg *sync.WaitGroup, ctx context.Context, p
 		for {
 			select {
 			case <-ctx.Done():
-				creator.closeAllCandles()
 				return
 			case <-lastOut:
 				continue
@@ -42,24 +42,18 @@ func (creator *CandleCreator) Process(wg *sync.WaitGroup, ctx context.Context, p
 	}()
 }
 
-func (creator *CandleCreator) closeAllCandles() {
-	for _, periodMap := range creator.ActiveCandles {
-		for _, candle := range periodMap {
-			fmt.Println(candle)
-			creator.closeCandle(candle)
-		}
-	}
-}
+func closeCandle(candle Candle, writer *csv.Writer){
+	err := writer.Write([]string{string(candle.Ticker), candle.TS.String(),
+		fmt.Sprintf("%f", candle.Open),
+		fmt.Sprintf("%f", candle.High),
+		fmt.Sprintf("%f", candle.Low),
+		fmt.Sprintf("%f", candle.Close)})
 
-func (creator *CandleCreator) closeCandle(candle Candle){
-	switch candle.Period {
-	case CandlePeriod1m:
-		candle.CloseCandle(creator.writer1m)
-	case CandlePeriod2m:
-		candle.CloseCandle(creator.writer2m)
-	case CandlePeriod10m:
-		candle.CloseCandle(creator.writer10m)
+	if err != nil {
+		log.Fatalln("error writing csv:", err)
 	}
+
+	writer.Flush()
 }
 
 func (creator *CandleCreator) getCandle(price Price, period CandlePeriod) Candle{
@@ -83,8 +77,26 @@ func (creator *CandleCreator) setCandle(candle Candle, price Price, period Candl
 
 func (creator *CandleCreator) process(period CandlePeriod, prices <-chan Price) <-chan Price {
 	out := make(chan Price)
+	var w *csv.Writer
+	switch period {
+	case CandlePeriod1m:
+		w = csv.NewWriter(creator.writer1m)
+	case CandlePeriod2m:
+		w = csv.NewWriter(creator.writer2m)
+	case CandlePeriod10m:
+		w = csv.NewWriter(creator.writer10m)
+	}
+
 	go func() {
-		defer close(out)
+		defer func() {
+			for _, periodMap := range creator.ActiveCandles {
+				fmt.Println("defer ", period)
+				closeCandle(periodMap[period], w)
+			}
+			close(out)
+		}()
+
+
 		for price := range prices {
 			candle := creator.getCandle(price, period)
 
@@ -92,7 +104,7 @@ func (creator *CandleCreator) process(period CandlePeriod, prices <-chan Price) 
 			catchFatalError(err)
 
 			if ts.After(candle.TS) {
-				creator.closeCandle(candle)
+				closeCandle(candle, w)
 				candle = NewCandle(price, period)
 			} else {
 				candle.UpdateCandle(price)
@@ -103,6 +115,7 @@ func (creator *CandleCreator) process(period CandlePeriod, prices <-chan Price) 
 			out <- price
 			}
 	}()
+
 	return out
 }
 

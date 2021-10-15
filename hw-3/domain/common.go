@@ -1,11 +1,7 @@
 package domain
 
 import (
-	"encoding/csv"
 	"errors"
-	"fmt"
-	log "github.com/sirupsen/logrus"
-	"io"
 	"time"
 )
 
@@ -70,21 +66,6 @@ func (candle *Candle) UpdateCandle(price Price) {
 	candle.Low = minFloat64(candle.Low, price.Value)
 	candle.High = maxFloat64(candle.High, price.Value)
 	candle.Close = price.Value
-}
-
-func (candle *Candle) CloseCandle(file io.Writer) {
-	// We never write to the same file in parallel, so no locks
-	w := csv.NewWriter(file)
-	err := w.Write([]string{string(candle.Ticker), candle.TS.String(),
-		fmt.Sprintf("%f", candle.Open),
-		fmt.Sprintf("%f", candle.High),
-		fmt.Sprintf("%f", candle.Low),
-		fmt.Sprintf("%f", candle.Close)})
-
-	if err != nil {
-		log.Fatalln("error writing csv:", err)
-	}
-	w.Flush()
 }
 
 func minFloat64(a, b float64) float64{
