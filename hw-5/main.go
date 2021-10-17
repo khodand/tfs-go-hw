@@ -24,5 +24,4 @@ func main() {
 	root.Mount("/user", r)
 
 	log.Fatal(http.ListenAndServe(":5000", root))
-
 }

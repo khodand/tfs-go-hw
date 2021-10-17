@@ -59,6 +59,7 @@ func (m *Messenger) PostPrivateMessage(w http.ResponseWriter, r *http.Request) {
 
 	datetime := time.Now().Format("2006.01.02 15:04:05")
 	formatMessage := fmt.Sprintf("{%s %s} %s\n", datetime, id, message)
+
 	if _, ok := m.userMessages[user]; !ok {
 		_, _ = w.Write([]byte("No such user :("))
 	} else {
@@ -76,6 +77,7 @@ func (m *Messenger) GetPrivateMessages(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
 	_, _ = w.Write(m.userMessages[string(id)])
 }
 
@@ -103,6 +105,7 @@ func (m *Messenger) Login(w http.ResponseWriter, r *http.Request) {
 	if _, ok := m.userMessages[u.Login]; !ok {
 		m.userMessages[u.Login] = []byte("Welcome to the chat!!! \n")
 	}
+
 	http.SetCookie(w, c)
 }
 
