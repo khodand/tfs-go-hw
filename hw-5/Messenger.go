@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 const (
