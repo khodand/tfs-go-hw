@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"context"
 	"encoding/csv"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -10,9 +9,6 @@ import (
 )
 
 type CandleCreator struct {
-	ActiveCandles      map[TickerName]map[CandlePeriod]Candle
-	ActiveCandlesMutex sync.Mutex
-
 	writer1m io.Writer
 	writer2m io.Writer
 	writer10m io.Writer
@@ -20,25 +16,18 @@ type CandleCreator struct {
 
 func NewCandleCreator(w1m, w2m, w10m io.Writer) *CandleCreator {
 	return &CandleCreator{
-		ActiveCandles: make(map[TickerName]map[CandlePeriod]Candle),
 		writer1m: w1m,
 		writer2m: w2m,
 		writer10m: w10m,
 	}
 }
 
-func (creator *CandleCreator) Process(wg *sync.WaitGroup, ctx context.Context, prices <-chan Price) {
+func (creator *CandleCreator) Process(wg *sync.WaitGroup, prices <-chan Price) {
 	go func() {
 		defer wg.Done()
-		lastOut := creator.process(CandlePeriod10m, creator.process(CandlePeriod2m, creator.process(CandlePeriod1m, prices)))
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-lastOut:
-				continue
-			}
-		}
+		for range process(CandlePeriod10m, csv.NewWriter(creator.writer10m),
+				process(CandlePeriod2m, csv.NewWriter(creator.writer2m),
+				process(CandlePeriod1m,  csv.NewWriter(creator.writer1m), prices))) {}
 	}()
 }
 
@@ -48,57 +37,29 @@ func closeCandle(candle Candle, writer *csv.Writer){
 		fmt.Sprintf("%f", candle.High),
 		fmt.Sprintf("%f", candle.Low),
 		fmt.Sprintf("%f", candle.Close)})
-
-	if err != nil {
-		log.Fatalln("error writing csv:", err)
-	}
-
+	catchFatalError(err)
 	writer.Flush()
 }
 
-func (creator *CandleCreator) getCandle(price Price, period CandlePeriod) Candle{
-	creator.ActiveCandlesMutex.Lock()
-	defer creator.ActiveCandlesMutex.Unlock()
-	if _, ok := creator.ActiveCandles[price.Ticker]; !ok {
-		creator.ActiveCandles[price.Ticker] = make(map[CandlePeriod]Candle)
-	}
-	if candle, ok := creator.ActiveCandles[price.Ticker][period]; !ok {
-		return NewCandle(price, period)
-	} else {
-		return candle
-	}
-}
-
-func (creator *CandleCreator) setCandle(candle Candle, price Price, period CandlePeriod) {
-	creator.ActiveCandlesMutex.Lock()
-	creator.ActiveCandles[price.Ticker][period] = candle
-	creator.ActiveCandlesMutex.Unlock()
-}
-
-func (creator *CandleCreator) process(period CandlePeriod, prices <-chan Price) <-chan Price {
+func process(period CandlePeriod, w *csv.Writer, prices <-chan Price) <-chan Price {
 	out := make(chan Price)
-	var w *csv.Writer
-	switch period {
-	case CandlePeriod1m:
-		w = csv.NewWriter(creator.writer1m)
-	case CandlePeriod2m:
-		w = csv.NewWriter(creator.writer2m)
-	case CandlePeriod10m:
-		w = csv.NewWriter(creator.writer10m)
-	}
-
+	activeCandles := make(map[TickerName]Candle)
 	go func() {
 		defer func() {
-			for _, periodMap := range creator.ActiveCandles {
+			for _, candle := range activeCandles {
 				fmt.Println("defer ", period)
-				closeCandle(periodMap[period], w)
+				closeCandle(candle, w)
 			}
 			close(out)
 		}()
 
-
 		for price := range prices {
-			candle := creator.getCandle(price, period)
+			var candle Candle
+			if c, ok := activeCandles[price.Ticker]; ok {
+				candle = c
+			} else {
+				candle = NewCandle(price, period)
+			}
 
 			ts, err := PeriodTS(period, price.TS)
 			catchFatalError(err)
@@ -110,8 +71,7 @@ func (creator *CandleCreator) process(period CandlePeriod, prices <-chan Price) 
 				candle.UpdateCandle(price)
 			}
 
-			creator.setCandle(candle, price, period)
-
+			activeCandles[price.Ticker] = candle
 			out <- price
 			}
 	}()
