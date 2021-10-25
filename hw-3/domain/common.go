@@ -44,9 +44,10 @@ type Candle struct {
 	Low    float64      // Минимальная цена
 	Close  float64      // Цена закрытие
 	TS     time.Time    // Время начала интервала
+	Closed bool
 }
 
-func NewCandle(price Price, period CandlePeriod) Candle{
+func NewCandle(price Price, period CandlePeriod) Candle {
 	if ts, err := PeriodTS(period, price.TS); err != nil {
 		return Candle{}
 	} else {
@@ -68,7 +69,7 @@ func (candle *Candle) UpdateCandle(price Price) {
 	candle.Close = price.Value
 }
 
-func minFloat64(a, b float64) float64{
+func minFloat64(a, b float64) float64 {
 	if a < b {
 		return a
 	} else {
@@ -76,7 +77,7 @@ func minFloat64(a, b float64) float64{
 	}
 }
 
-func maxFloat64(a, b float64) float64{
+func maxFloat64(a, b float64) float64 {
 	if a > b {
 		return a
 	} else {

@@ -9,15 +9,15 @@ import (
 )
 
 type CandleCreator struct {
-	writer1m io.Writer
-	writer2m io.Writer
+	writer1m  io.Writer
+	writer2m  io.Writer
 	writer10m io.Writer
 }
 
 func NewCandleCreator(w1m, w2m, w10m io.Writer) *CandleCreator {
 	return &CandleCreator{
-		writer1m: w1m,
-		writer2m: w2m,
+		writer1m:  w1m,
+		writer2m:  w2m,
 		writer10m: w10m,
 	}
 }
@@ -25,13 +25,14 @@ func NewCandleCreator(w1m, w2m, w10m io.Writer) *CandleCreator {
 func (creator *CandleCreator) Process(wg *sync.WaitGroup, prices <-chan Price) {
 	go func() {
 		defer wg.Done()
-		for range process(CandlePeriod10m, csv.NewWriter(creator.writer10m),
-				process(CandlePeriod2m, csv.NewWriter(creator.writer2m),
-				process(CandlePeriod1m,  csv.NewWriter(creator.writer1m), prices))) {}
+		for range save(csv.NewWriter(creator.writer10m), process(CandlePeriod10m,
+			save(csv.NewWriter(creator.writer2m), process(CandlePeriod2m,
+				save(csv.NewWriter(creator.writer1m), process(CandlePeriod1m, prices)))))) {
+		}
 	}()
 }
 
-func closeCandle(candle Candle, writer *csv.Writer){
+func closeCandle(candle Candle, writer *csv.Writer) {
 	err := writer.Write([]string{string(candle.Ticker), candle.TS.String(),
 		fmt.Sprintf("%f", candle.Open),
 		fmt.Sprintf("%f", candle.High),
@@ -41,14 +42,35 @@ func closeCandle(candle Candle, writer *csv.Writer){
 	writer.Flush()
 }
 
-func process(period CandlePeriod, w *csv.Writer, prices <-chan Price) <-chan Price {
+func save(w *csv.Writer, candles <-chan Candle) <-chan Price {
 	out := make(chan Price)
+	go func() {
+		defer func() {
+			close(out)
+		}()
+
+		for candle := range candles {
+			if candle.Closed {
+				closeCandle(candle, w)
+			}
+			out <- Price{
+				Ticker: candle.Ticker,
+				Value:  candle.Close,
+				TS:     candle.TS,
+			}
+		}
+	}()
+	return out
+}
+
+func process(period CandlePeriod, prices <-chan Price) <-chan Candle {
+	out := make(chan Candle)
 	activeCandles := make(map[TickerName]Candle)
 	go func() {
 		defer func() {
 			for _, candle := range activeCandles {
-				fmt.Println("defer ", period)
-				closeCandle(candle, w)
+				candle.Closed = true
+				out <- candle
 			}
 			close(out)
 		}()
@@ -64,16 +86,17 @@ func process(period CandlePeriod, w *csv.Writer, prices <-chan Price) <-chan Pri
 			ts, err := PeriodTS(period, price.TS)
 			catchFatalError(err)
 
+			outCandle := candle
 			if ts.After(candle.TS) {
-				closeCandle(candle, w)
+				outCandle.Closed = true
 				candle = NewCandle(price, period)
 			} else {
 				candle.UpdateCandle(price)
 			}
 
 			activeCandles[price.Ticker] = candle
-			out <- price
-			}
+			out <- outCandle
+		}
 	}()
 
 	return out
