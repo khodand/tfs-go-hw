@@ -20,11 +20,15 @@ const (
 
 type cookieVal string
 
+type User struct {
+	Login string
+}
+
 type Messenger struct {
-	messagesLock sync.RWMutex
-	messages     []byte
+	messagesLock     sync.RWMutex
+	messages         []byte
 	userMessagesLock sync.RWMutex
-	userMessages map[string][]byte
+	userMessages     map[string][]byte
 }
 
 func (m *Messenger) addMessage(message string, user cookieVal) {
@@ -50,10 +54,6 @@ func (m *Messenger) addUserMessage(message string, user cookieVal, receiverID st
 
 func formatMessage(message string, user cookieVal) string {
 	return fmt.Sprintf("{%s %s} %s\n", time.Now().Format("2006.01.02 15:04:05"), user, message)
-}
-
-type User struct {
-	Login string
 }
 
 func NewMessenger() *Messenger {
