@@ -44,12 +44,12 @@ func (m *Messenger) addUserMessage(message string, user cookieVal, receiverID st
 
 	m.userMessagesLock.Lock()
 	defer m.userMessagesLock.Unlock()
-	if _, ok := m.userMessages[receiverID]; !ok {
+	_, ok := m.userMessages[receiverID]
+	if !ok {
 		return errors.New("NO SUCH USER")
-	} else {
-		m.userMessages[receiverID] = append(m.userMessages[receiverID], []byte(message)...)
-		return nil
 	}
+	m.userMessages[receiverID] = append(m.userMessages[receiverID], []byte(message)...)
+	return nil
 }
 
 func formatMessage(message string, user cookieVal) string {
