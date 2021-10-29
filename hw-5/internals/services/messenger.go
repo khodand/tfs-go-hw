@@ -3,9 +3,11 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"github.com/go-chi/chi/v5"
 	"io"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
 	"tfs-go-hw/hw-5/internals/domain"
 )
 

@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"tfs-go-hw/hw-5/internals/domain"
 	"time"
+
+	"tfs-go-hw/hw-5/internals/domain"
 )
 
 type Database struct {
